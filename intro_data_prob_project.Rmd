@@ -1,0 +1,164 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `brfss2013`. Delete this note when before you submit 
+your work. 
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+```{r load-data}
+brfss2013 %>%
+  summarise(count = n())
+```
+
+* * *
+
+## Part 1: Data
+The Behavioral Risk Factor Surveillance System (BRFSS) data is collected from U.S. residents regarding their health-related risk behaviors, chronic health conditions, and use of preventive services via telephone surveys.
+This system started in 1984 and covered all 50 states as well as the District of Columbia and three U.S. territories. It completed more than 400,000 adult interviews each year.
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+How does joint pain severity affect sleep time of US citizens?
+
+**Research quesion 2:**
+Does smoking increase the likelihood of getting heart attack or cancer?
+
+**Research quesion 3:**
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button (green button with orange arrow) above. Make sure that your code is visible
+in the project you submit. Delete this note when before you submit your work.
+
+**Research quesion 1:**
+Compare percentages of people with inadequate sleep time (< 6 hours)
+within people who reported activity limited due to joint pain and everyone in this survey who reported sleep time (not NA).
+
+```{r}
+joint_sleep <- brfss2013 %>%
+  filter(!is.na(sleptim1) & sleptim1 < 15 & !is.na(lmtjoin3) & lmtjoin3 == "Yes") %>%
+  mutate(inadq_slp = sleptim1 < 6)
+
+joint_sleep %>%
+  summarise(std_slp = sd(sleptim1), mean_slp = mean(sleptim1))
+
+```
+
+```{r}
+
+joint_sleep %>%
+  select(sleptim1, inadq_slp, joinpain)
+
+```
+
+```{r}
+joint_sleep %>%
+  summarise(inadq_slp_rate = sum(inadq_slp == TRUE)/n())
+```
+
+
+```{r}
+all_sleep <- brfss2013 %>%
+  filter(!is.na(sleptim1) & sleptim1 < 15) %>%
+  mutate(inadq_slp = sleptim1 < 6)
+
+all_sleep %>%
+  summarise(inadq_slp_rate = sum(inadq_slp == TRUE)/n())
+```
+Almost 20% of people with joint symptoms have inadequate sleep time.
+Only 10.8% general public have inadequate sleep time.
+
+
+**Research quesion 2:**
+smoke100: Smoked At Least 100 Cigarettes (Yes, No)
+chcocncr: (Ever Told) You Had Any Other Types Of Cancer? (Yes, No)
+cvdinfr4: Ever Diagnosed With Heart Attack? (Yes, No)
+
+```{r}
+sm_htcr <- brfss2013 %>%
+  filter(!is.na(cvdinfr4),!is.na(chcocncr), smoke100 == "Yes") %>%
+  select(cvdinfr4,smoke100,chcocncr)
+
+sm_htcr <- sm_htcr %>%
+  mutate(smk_ca_ht = ifelse(cvdinfr4== "Yes" | chcocncr == "Yes", "Yes", "No"))
+
+sm_group <- sm_htcr %>%
+  group_by(smk_ca_ht) %>%
+  summarise(count=n())
+
+ggplot(data=sm_group,aes(x=smk_ca_ht,y=count))+geom_bar(stat='identity')+xlab("Has either heart attack or cancer")+ylab("Number of US Citizens")
+```
+
+```{r}
+sm_htcr %>%
+  summarise(ht_or_ca = sum(smk_ca_ht == "Yes")/n())
+```
+About 18.4% people who Smoked At Least 100 Cigarettes had either heart attack or cancer
+About 11.3% people Not smoked At Least 100 Cigarettes had either heart attack or cancer
+
+```{r}
+nosm_htcr <- brfss2013 %>%
+  filter(!is.na(cvdinfr4),!is.na(chcocncr), smoke100 == "No") %>%
+  select(cvdinfr4,smoke100,chcocncr)
+nosm_htcr <- nosm_htcr %>%
+  mutate(ca_ht = ifelse(cvdinfr4== "Yes" | chcocncr == "Yes", "Yes", "No"))
+nosm_htcr %>%
+  summarise(ht_or_ca = sum(ca_ht == "Yes")/n())
+```
+
+**Research quesion 3:**
+qlmentl2: How Many Days Depressed In Past 30 Days
+exerhmm2: Minutes Or Hours Walking, Running, Jogging, Or Swimming
+exerhmm1: Minutes Or Hours Walking, Running, Jogging, Or Swimming
+exeroft1: How Many Times Walking, Running, Jogging, Or Swimming
+exerany2: Exercise In Past 30 Days
+
+```{r}
+ex_dep <- brfss2013 %>%
+  filter(!is.na(qlmentl2),!is.na(exerhmm2), !is.na(exeroft1)) %>%
+  select(qlmentl2, exerhmm2, exeroft1)
+ex_dep %>%
+  summarize(meam = mean(exeroft1), std = sd(exeroft1))
+
+ex_dep <- ex_dep %>%
+  mutate(enough_ex = ifelse(exeroft1 > 130, "Yes", "No"))
+
+
+```
+There were less people who felt depressed more than five days over the past 30 days in group who exercise (Walking, Running, Jogging, Or Swimming) more than 130 times/month than those who exercise < 130 times/month
+
+```{r}
+ex_30 <- ex_dep %>%
+  group_by(enough_ex) %>%
+  summarise(dep = sum(qlmentl2 > 5))
+
+ggplot(data=ex_30,aes(x = enough_ex, y = dep)) + geom_bar(stat='identity')+xlab("walk, jog > 130 times/month")+ylab("more than 5 days feel depressed")
+```
