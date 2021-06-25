@@ -26,10 +26,7 @@ your work.
 load("brfss2013.RData")
 ```
 
-```{r load-data}
-brfss2013 %>%
-  summarise(count = n())
-```
+
 
 * * *
 
